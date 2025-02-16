@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微信群二维码管理</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .qr-card {
+            margin-bottom: 20px;
+        }
+        .qr-image {
+            max-width: 200px;
+            height: auto;
+        }
+        .modal-qr-image {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 1rem;
+        }
+        .qr-link {
+            word-break: break-all;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .copy-btn {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="mb-4">微信群二维码管理</h1>
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-info">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">添加新二维码</h5>
+                        <form action="{{ url_for('add_qrcode') }}" method="post" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">群名称</label>
+                                <input type="text" class="form-control" id="name" name="name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="qrcode" class="form-label">二维码图片</label>
+                                <input type="file" class="form-control" id="qrcode" name="qrcode" accept="image/*" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="path_identifier" class="form-label">路径标识（选填）</label>
+                                <input type="text" class="form-control" id="path_identifier" name="path_identifier" 
+                                       pattern="[a-zA-Z0-9_-]+" 
+                                       title="只能包含字母、数字、下划线和连字符">
+                                <small class="text-muted">自定义URL路径，例如：coding、python-group等，留空则自动生成</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="max_members" class="form-label">最大成员数</label>
+                                <input type="number" class="form-control" id="max_members" name="max_members" value="500">
+                            </div>
+                            <div class="mb-3">
+                                <label for="order" class="form-label">显示顺序</label>
+                                <input type="number" class="form-control" id="order" name="order" value="0">
+                            </div>
+                            <button type="submit" class="btn btn-primary">添加</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="mb-3">现有二维码</h2>
+        <div class="row">
+            {% for qrcode in qrcodes %}
+            <div class="col-md-4">
+                <div class="card qr-card">
+                    <img src="{{ qrcode.image_path }}" class="card-img-top qr-image mx-auto mt-3" alt="{{ qrcode.name }}">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ qrcode.name }}</h5>
+                        <p class="card-text">
+                            状态: {% if qrcode.is_active %}活跃{% else %}已满{% endif %}<br>
+                            成员: {{ qrcode.current_members }}/{{ qrcode.max_members }}<br>
+                            顺序: {{ qrcode.order }}
+                        </p>
+                        <div class="qr-link">
+                            <small class="text-muted">专属链接:</small><br>
+                            <div class="input-group">
+                                <input type="text" class="form-control form-control-sm" 
+                                       value="{{ url_for('display_single', display_code=qrcode.display_code, _external=True) }}" 
+                                       id="link_{{ qrcode.id }}" readonly>
+                                <button class="btn btn-outline-secondary btn-sm copy-btn" 
+                                        type="button" 
+                                        onclick="copyLink('link_{{ qrcode.id }}')">
+                                    复制
+                                </button>
+                            </div>
+                        </div>
+                        <div class="btn-group" role="group">
+                            <form action="{{ url_for('update_status', id=qrcode.id) }}" method="post" style="display: inline;">
+                                <input type="hidden" name="action" value="increment">
+                                <button type="submit" class="btn btn-success btn-sm">+1</button>
+                            </form>
+                            <form action="{{ url_for('update_status', id=qrcode.id) }}" method="post" style="display: inline;">
+                                <input type="hidden" name="action" value="decrement">
+                                <button type="submit" class="btn btn-warning btn-sm">-1</button>
+                            </form>
+                            <button type="button" class="btn btn-info btn-sm" 
+                                    onclick="openEditModal('{{ qrcode.id }}', '{{ qrcode.name }}', '{{ qrcode.max_members }}', '{{ qrcode.order }}', '{{ qrcode.image_path }}', '{{ qrcode.display_code }}')">
+                                编辑
+                            </button>
+                            <form action="{{ url_for('delete_qrcode', id=qrcode.id) }}" method="post" style="display: inline;">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('确定要删除吗？')">删除</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="mt-4 mb-4">
+            <a href="{{ url_for('display') }}" target="_blank" class="btn btn-primary">查看展示页面</a>
+        </div>
+    </div>
+
+    <!-- 编辑模态框 -->
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">编辑二维码</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editForm" method="post" enctype="multipart/form-data">
+                        <img id="currentQRCode" class="modal-qr-image" src="" alt="当前二维码">
+                        <div class="mb-3">
+                            <label for="editName" class="form-label">群名称</label>
+                            <input type="text" class="form-control" id="editName" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editQRCode" class="form-label">更新二维码图片</label>
+                            <input type="file" class="form-control" id="editQRCode" name="qrcode" accept="image/*">
+                            <small class="text-muted">如果不需要更改二维码图片，请留空</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editPathIdentifier" class="form-label">路径标识</label>
+                            <input type="text" class="form-control" id="editPathIdentifier" name="path_identifier" 
+                                   pattern="[a-zA-Z0-9_-]+" 
+                                   title="只能包含字母、数字、下划线和连字符">
+                            <small class="text-muted">更改URL路径，例如：coding、python-group等，留空则保持原值</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editMaxMembers" class="form-label">最大成员数</label>
+                            <input type="number" class="form-control" id="editMaxMembers" name="max_members">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editOrder" class="form-label">显示顺序</label>
+                            <input type="number" class="form-control" id="editOrder" name="order">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="submitEdit()">保存更改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+        
+        function openEditModal(id, name, maxMembers, order, imagePath, displayCode) {
+            document.getElementById('editForm').action = `/update_qrcode/${id}`;
+            document.getElementById('editName').value = name;
+            document.getElementById('editMaxMembers').value = maxMembers;
+            document.getElementById('editOrder').value = order;
+            document.getElementById('editPathIdentifier').value = displayCode;
+            document.getElementById('currentQRCode').src = imagePath;
+            editModal.show();
+        }
+        
+        function submitEdit() {
+            document.getElementById('editForm').submit();
+        }
+
+        function copyLink(elementId) {
+            const linkInput = document.getElementById(elementId);
+            linkInput.select();
+            document.execCommand('copy');
+            alert('链接已复制到剪贴板');
+        }
+    </script>
+</body>
+</html> 
