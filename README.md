@@ -1,6 +1,8 @@
-# 动态微信群二维码管理系统
+# 动态微信群二维码管理系统  Dynamic Group QR Code Management System
 
-这是一个用于管理微信群二维码的Web应用，可以自动切换显示不同群的二维码，当一个群满员后使用下一个新群的二维码。
+[English Documentation](README_EN.md)
+
+这是一个用于管理微信群（其他群也支持）二维码的Web应用，可以自动切换显示不同群的二维码，当一个群满员后使用下一个新群的二维码。
 
 ## 功能特点
 
@@ -26,6 +28,14 @@
 /qrcode/login - 登录页面
 /qrcode/logout - 登出
 /group/<display_code> - 显示特定的二维码（保持不变，无前缀）
+
+## 界面预览
+
+### 登录界面
+![登录界面](/images/login.png)
+
+### 管理后台
+![管理后台](/images/qrcode_admin.png)
 
 ## 安装说明
 
