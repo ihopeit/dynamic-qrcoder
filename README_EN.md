@@ -8,7 +8,7 @@ This is a web application for managing WeChat group QR codes, which can automati
 
 - Support uploading multiple WeChat group QR codes
 - Configurable maximum group member limit
-- Automatic tracking of group member count
+- Dynamic QR code, never expired group QR code, permanent QR code
 - Admin backend to update group QR codes before groups reach capacity (TODO: Automatic switching to the next available group QR code)
 - Provides both management and display interfaces
 - Display page auto-refreshes to ensure QR codes are always up to date
