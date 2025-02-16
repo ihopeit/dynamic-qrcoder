@@ -1,16 +1,41 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Blueprint
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from datetime import datetime
 import os
+from dotenv import load_dotenv
 import random
 import string
 import re
 
+# Load environment variables
+load_dotenv()
+
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.urandom(24)
+app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', os.urandom(24))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///qrcodes.db'
 app.config['UPLOAD_FOLDER'] = 'static/qrcodes'
+
+# Create a Blueprint with URL prefix
+url_prefix = os.getenv('URL_PREFIX', '').strip('/')
+if url_prefix:
+    admin_bp = Blueprint('admin', __name__, url_prefix=f'/{url_prefix}')
+else:
+    admin_bp = Blueprint('admin', __name__)
+
 db = SQLAlchemy(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'admin.login'  # Update login view to use blueprint
+
+# User model for authentication
+class User(UserMixin):
+    def __init__(self, id):
+        self.id = id
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User(user_id)
 
 def generate_display_code():
     while True:
@@ -58,22 +83,40 @@ with app.app_context():
         qrcode.display_code = generate_display_code()
     db.session.commit()
 
-@app.route('/')
-def index():
+@admin_bp.route('/')
+def root():
+    return redirect(url_for('admin.admin_index'))
+
+@admin_bp.route('/group_adm_dna')
+@login_required
+def admin_index():
     qrcodes = QRCode.query.order_by(QRCode.order).all()
     return render_template('index.html', qrcodes=qrcodes)
 
-@app.route('/display')
-def display():
-    active_qrcode = QRCode.query.filter_by(is_active=True).order_by(QRCode.order).first()
-    return render_template('display.html', qrcode=active_qrcode)
+@admin_bp.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        if username == os.getenv('ADMIN_USERNAME') and password == os.getenv('ADMIN_PASSWORD'):
+            user = User(1)
+            login_user(user)
+            return redirect(url_for('admin.admin_index'))
+        flash('Invalid username or password')
+    return render_template('login.html')
+
+@admin_bp.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('admin.login'))
 
 @app.route('/group/<display_code>')
 def display_single(display_code):
     qrcode = QRCode.query.filter_by(display_code=display_code).first_or_404()
     return render_template('display.html', qrcode=qrcode, single_mode=True)
 
-@app.route('/update_qrcode/<int:id>', methods=['POST'])
+@admin_bp.route('/update_qrcode/<int:id>', methods=['POST'])
+@login_required
 def update_qrcode(id):
     qrcode = QRCode.query.get_or_404(id)
     
@@ -107,35 +150,36 @@ def update_qrcode(id):
                 qrcode.display_code = path_identifier
             else:
                 flash('路径标识已被使用，请选择其他标识')
-                return redirect(url_for('index'))
+                return redirect(url_for('admin.admin_index'))
         else:
             flash('路径标识只能包含字母、数字、下划线和连字符')
-            return redirect(url_for('index'))
+            return redirect(url_for('admin.admin_index'))
     
     db.session.commit()
     flash('二维码更新成功')
-    return redirect(url_for('index'))
+    return redirect(url_for('admin.admin_index'))
 
-@app.route('/add_qrcode', methods=['POST'])
+@admin_bp.route('/add_qrcode', methods=['POST'])
+@login_required
 def add_qrcode():
     if 'qrcode' not in request.files:
         flash('No file uploaded')
-        return redirect(url_for('index'))
+        return redirect(url_for('admin.admin_index'))
     
     file = request.files['qrcode']
     if file.filename == '':
         flash('No file selected')
-        return redirect(url_for('index'))
+        return redirect(url_for('admin.admin_index'))
 
     # 验证路径标识符
     path_identifier = request.form.get('path_identifier', '').strip()
     if path_identifier:
         if not is_valid_path_identifier(path_identifier):
             flash('路径标识只能包含字母、数字、下划线和连字符')
-            return redirect(url_for('index'))
+            return redirect(url_for('admin.admin_index'))
         if QRCode.query.filter_by(display_code=path_identifier).first():
             flash('路径标识已被使用，请选择其他标识')
-            return redirect(url_for('index'))
+            return redirect(url_for('admin.admin_index'))
 
     if file:
         filename = f"qrcode_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
@@ -153,9 +197,10 @@ def add_qrcode():
         db.session.commit()
         
         flash('QR Code added successfully')
-    return redirect(url_for('index'))
+    return redirect(url_for('admin.admin_index'))
 
-@app.route('/update_status/<int:id>', methods=['POST'])
+@admin_bp.route('/update_status/<int:id>', methods=['POST'])
+@login_required
 def update_status(id):
     qrcode = QRCode.query.get_or_404(id)
     action = request.form.get('action')
@@ -172,9 +217,10 @@ def update_status(id):
             next_qrcode.is_active = True
     
     db.session.commit()
-    return redirect(url_for('index'))
+    return redirect(url_for('admin.admin_index'))
 
-@app.route('/delete_qrcode/<int:id>', methods=['POST'])
+@admin_bp.route('/delete_qrcode/<int:id>', methods=['POST'])
+@login_required
 def delete_qrcode(id):
     qrcode = QRCode.query.get_or_404(id)
     if os.path.exists(os.path.join('static', qrcode.image_path.lstrip('/'))):
@@ -182,7 +228,10 @@ def delete_qrcode(id):
     db.session.delete(qrcode)
     db.session.commit()
     flash('QR Code deleted successfully')
-    return redirect(url_for('index'))
+    return redirect(url_for('admin.admin_index'))
+
+# Register the blueprint
+app.register_blueprint(admin_bp)
 
 if __name__ == '__main__':
     app.run(debug=True) 

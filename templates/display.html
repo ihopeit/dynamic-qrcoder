@@ -37,7 +37,7 @@
         {% if qrcode %}
             <h2 class="mb-4">{{ qrcode.name }}</h2>
             <img src="{{ qrcode.image_path }}" class="qr-image" alt="微信群二维码">
-            <p class="mt-3">当前人数: {{ qrcode.current_members }}/{{ qrcode.max_members }}</p>
+            
             {% if not single_mode %}
             <p class="refresh-text">页面每60秒自动刷新一次</p>
             <script>
