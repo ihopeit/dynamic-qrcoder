@@ -1,3 +1,4 @@
 instance
 static/qrcodes/
 .env
+run.sh

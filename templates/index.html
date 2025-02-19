@@ -81,7 +81,16 @@
             {% for qrcode in qrcodes %}
             <div class="col-md-4">
                 <div class="card qr-card">
-                    <img src="{{ qrcode.image_path }}" class="card-img-top qr-image mx-auto mt-3" alt="{{ qrcode.name }}">
+                    <div class="qr-images mt-3">
+                        <div class="original-qr mb-2">
+                            <small class="text-muted">原始群二维码:</small>
+                            <img src="{{ qrcode.image_path }}" class="card-img-top qr-image mx-auto" alt="{{ qrcode.name }}">
+                        </div>
+                        <div class="permanent-qr mb-2">
+                            <small class="text-muted">永久链接二维码:</small>
+                            <img src="{{ url_for('admin.permanent_qr', display_code=qrcode.display_code) }}" class="card-img-top qr-image mx-auto" alt="永久链接二维码">
+                        </div>
+                    </div>
                     <div class="card-body">
                         <h5 class="card-title">{{ qrcode.name }}</h5>
                         <p class="card-text">

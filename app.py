@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 import random
 import string
 import re
+import qrcode
+from io import BytesIO
 
 # Load environment variables
 load_dotenv()
@@ -229,6 +231,33 @@ def delete_qrcode(id):
     db.session.commit()
     flash('QR Code deleted successfully')
     return redirect(url_for('admin.admin_index'))
+
+def generate_qr_code_for_url(url):
+    """Generate QR code image for a given URL"""
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Save to BytesIO
+    img_io = BytesIO()
+    img.save(img_io, 'PNG')
+    img_io.seek(0)
+    return img_io
+
+@admin_bp.route('/permanent_qr/<display_code>')
+@login_required
+def permanent_qr(display_code):
+    """Generate and return permanent QR code for a display code"""
+    qrcode_obj = QRCode.query.filter_by(display_code=display_code).first_or_404()
+    url = url_for('display_single', display_code=display_code, _external=True)
+    img_io = generate_qr_code_for_url(url)
+    return img_io.getvalue(), 200, {'Content-Type': 'image/png'}
 
 # Register the blueprint
 app.register_blueprint(admin_bp)
