@@ -22,7 +22,6 @@ In the admin backend, each group displays two QR codes:
 
 Configuration options in the .env file:
 - URL_PREFIX=qrcode - URL prefix configuration
-- PREFERRED_URL_SCHEME=https - URL scheme configuration (use https for production, http for local development)
 
 Flask Blueprint is used to implement URL prefix functionality.
 All routes except `/group/<display_code>` are moved to the prefixed Blueprint.
@@ -35,6 +34,14 @@ Current URL structure:
 - `/qrcode/login` - Login page
 - `/qrcode/logout` - Logout
 - `/group/<display_code>` - Display specific QR code (unchanged, no prefix)
+
+Nginx https forward configuration example:
+```
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+```
 
 ## Interface Preview
 

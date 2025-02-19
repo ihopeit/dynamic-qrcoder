@@ -22,7 +22,6 @@
 
 在 .env 文件中的配置项：
 - URL_PREFIX=qrcode - URL 前缀配置
-- PREFERRED_URL_SCHEME=https - URL 协议配置（生产环境使用 https，本地开发使用 http）
 
 使用 Flask Blueprint 来实现 URL 前缀功能
 将除了 /group/<display_code> 之外的所有路由移到带前缀的 Blueprint 中
@@ -35,6 +34,13 @@
 /qrcode/login - 登录页面
 /qrcode/logout - 登出
 /group/<display_code> - 显示特定的二维码（保持不变，无前缀）
+
+Nginx https 转发配置示例：
+```
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
 
 ## 界面预览
 
