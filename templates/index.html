@@ -102,7 +102,7 @@
                             <small class="text-muted">专属链接:</small><br>
                             <div class="input-group">
                                 <input type="text" class="form-control form-control-sm" 
-                                       value="{{ url_for('display_single', display_code=qrcode.display_code, _external=True) }}" 
+                                       value="{{ get_external_url('display_single', display_code=qrcode.display_code) }}" 
                                        id="link_{{ qrcode.id }}" readonly>
                                 <button class="btn btn-outline-secondary btn-sm copy-btn" 
                                         type="button" 

@@ -18,6 +18,17 @@ app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', os.urandom(24))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///qrcodes.db'
 app.config['UPLOAD_FOLDER'] = 'static/qrcodes'
 
+# Add support for proxy headers with more comprehensive settings
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(
+    app.wsgi_app,
+    x_for=1,      # Number of proxy servers
+    x_proto=1,    # SSL termination proxy
+    x_host=1,     # Host header proxy
+    x_port=1,     # Port proxy
+    x_prefix=1    # Path prefix proxy
+)
+
 # Create a Blueprint with URL prefix
 url_prefix = os.getenv('URL_PREFIX', '').strip('/')
 if url_prefix:
@@ -250,12 +261,24 @@ def generate_qr_code_for_url(url):
     img_io.seek(0)
     return img_io
 
+def get_external_url(endpoint, **values):
+    """Generate external URL with proper scheme"""
+    if request:
+        scheme = request.headers.get('X-Forwarded-Proto', 'http')
+        values['_scheme'] = scheme
+        values['_external'] = True
+        return url_for(endpoint, **values)
+    return url_for(endpoint, _external=True, **values)
+
+# Add get_external_url as a template global
+app.jinja_env.globals['get_external_url'] = get_external_url
+
 @admin_bp.route('/permanent_qr/<display_code>')
 @login_required
 def permanent_qr(display_code):
     """Generate and return permanent QR code for a display code"""
     qrcode_obj = QRCode.query.filter_by(display_code=display_code).first_or_404()
-    url = url_for('display_single', display_code=display_code, _external=True)
+    url = get_external_url('display_single', display_code=display_code)
     img_io = generate_qr_code_for_url(url)
     return img_io.getvalue(), 200, {'Content-Type': 'image/png'}
 

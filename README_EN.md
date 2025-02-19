@@ -12,6 +12,7 @@ This is a web application for managing WeChat group QR codes (also supports othe
 - Admin backend to update group QR codes before groups reach capacity (TODO: Automatic switching to the next available group QR code)
 - Provides both management and display interfaces
 - Display page auto-refreshes to ensure QR codes are always up to date
+- HTTPS support for secure access in production environment
 
 The dynamic QR code functionality requires login for the admin backend, with username and password configured in the `.env` file. Each QR code's dedicated link can be accessed anonymously.
 
@@ -19,7 +20,9 @@ In the admin backend, each group displays two QR codes:
 1. Original Group QR Code - The actual uploaded group QR code
 2. Permanent Link QR Code - A permanent QR code pointing to the group's dedicated link, which can be used long-term
 
-A `URL_PREFIX=qrcode` configuration has been added to the `.env` file.
+Configuration options in the .env file:
+- URL_PREFIX=qrcode - URL prefix configuration
+- PREFERRED_URL_SCHEME=https - URL scheme configuration (use https for production, http for local development)
 
 Flask Blueprint is used to implement URL prefix functionality.
 All routes except `/group/<display_code>` are moved to the prefixed Blueprint.
