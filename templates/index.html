@@ -190,7 +190,7 @@
         const editModal = new bootstrap.Modal(document.getElementById('editModal'));
         
         function openEditModal(id, name, maxMembers, order, imagePath, displayCode) {
-            document.getElementById('editForm').action = `/qrcode/update_qrcode/${id}`;
+            document.getElementById('editForm').action = "{{ url_for('admin.update_qrcode', id=0) }}".replace('/0', `/${id}`);
             document.getElementById('editName').value = name;
             document.getElementById('editMaxMembers').value = maxMembers;
             document.getElementById('editOrder').value = order;
